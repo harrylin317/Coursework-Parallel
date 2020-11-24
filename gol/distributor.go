@@ -85,7 +85,7 @@ func distributor(p Params, c distributorChannels) {
 						pauseChan <- pause
 					} else {
 						pause = true
-						c.events <- StateChange{turns, Executing}
+						//c.events <- StateChange{turns, Executing}
 						pauseChan <- pause
 						c.events <- StateChange{turns, Paused}
 					}
