@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
 	"uk.ac.bris.cs/gameoflife/util"
 )
 
@@ -113,6 +114,9 @@ func (io *ioState) readPgmImage() {
 
 	image := []byte(fields[4])
 
+	// for _, b := range image {
+	// 	fmt.Println("here: ", b)
+	// }
 	for _, b := range image {
 		io.channels.input <- b
 	}
