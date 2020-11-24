@@ -135,9 +135,6 @@ func distributor(p Params, c distributorChannels) {
 			}
 			world = newWorld
 
-			//get slice of alive cells from updated world
-			aliveCells = calculateAliveCells(p, world)
-
 			//generate new closure of the updated world
 			immutableWorld = makeImmutableWorld(world)
 
@@ -150,6 +147,8 @@ func distributor(p Params, c distributorChannels) {
 			break
 		}
 	}
+	//get slice of alive cells from updated world
+	aliveCells = calculateAliveCells(p, world)
 
 	//stop ticker
 	ticker.Stop()
