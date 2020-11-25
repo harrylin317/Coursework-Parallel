@@ -48,7 +48,6 @@ func distributor(p Params, c distributorChannels) {
 
 	//initialize alive cells from the new world
 	aliveCells := calculateAliveCells(p, world)
-
 	// set up ticker to tick every 2 second and gets the alive cell count
 	go func() {
 		for {
@@ -56,11 +55,11 @@ func distributor(p Params, c distributorChannels) {
 			case <-done:
 				return
 			case <-ticker.C:
-				if turns == 0 || pause {
+				if pause {
 					break
 				}
-				aliveCells := len((calculateAliveCells(p, world)))
-				eventAliveCellsCount := AliveCellsCount{CompletedTurns: turns, CellsCount: aliveCells}
+				aliveCellsCount := len(aliveCells)
+				eventAliveCellsCount := AliveCellsCount{CompletedTurns: turns, CellsCount: aliveCellsCount}
 				c.events <- eventAliveCellsCount
 			}
 		}
@@ -81,13 +80,10 @@ func distributor(p Params, c distributorChannels) {
 				case 'p':
 					if pause {
 						pause = false
-						fmt.Println("Continuing")
 						pauseChan <- pause
 					} else {
 						pause = true
-						//c.events <- StateChange{turns, Executing}
 						pauseChan <- pause
-						c.events <- StateChange{turns, Paused}
 					}
 				}
 			}
@@ -111,14 +107,20 @@ func distributor(p Params, c distributorChannels) {
 	for turns = 0; turns < p.Turns; turns++ {
 		select {
 		case <-pauseChan:
+			fmt.Println("Currently on turn: ", turns+1)
+			c.events <- StateChange{turns, Paused}
 			select {
 			case <-pauseChan:
+				c.events <- StateChange{turns, Executing}
+				fmt.Println("Continuing execution on turn: ", turns+1)
+				turns--
 				break
 			case exit = <-exitChan:
 				break
 			}
 		case exit = <-exitChan:
 		default:
+			// fmt.Println("Executing :", turns+1)
 			for i := 0; i < p.Threads; i++ {
 				//if the length cannot be evenly divided, allow the last worker to do all the remaining extra length of the image
 				if checkRemainder != 0 && i == p.Threads-1 {
@@ -135,25 +137,30 @@ func distributor(p Params, c distributorChannels) {
 			}
 			world = newWorld
 
+			//get slice of alive cells from updated world
+			aliveCells = calculateAliveCells(p, world)
+
 			//generate new closure of the updated world
 			immutableWorld = makeImmutableWorld(world)
+			// fmt.Println("Finished :", turns+1)
+			// fmt.Println("completed turn :", turns+1)
 
 			//call turn complete event when all process for one turn finish
-			eventTurnComplete := TurnComplete{CompletedTurns: turns}
+			eventTurnComplete := TurnComplete{CompletedTurns: turns + 1}
 			c.events <- eventTurnComplete
+
 		}
-		//if exit is true (only changes when 'q' is pressed), exit the execution process
+		//if exit is true (only changes when 'q' is pressed), exit the execution process, decrement turns because this turn doesn't count as a finished execution
 		if exit {
 			break
 		}
 	}
-	//get slice of alive cells from updated world
-	aliveCells = calculateAliveCells(p, world)
 
 	//stop ticker
 	ticker.Stop()
 	done <- true
 
+	aliveCells = calculateAliveCells(p, world)
 	//call final turn complete event
 	eventFinalTurnComplete := FinalTurnComplete{CompletedTurns: turns, Alive: aliveCells}
 	c.events <- eventFinalTurnComplete
@@ -232,7 +239,6 @@ func calculateNextState(startY, endY, startX, endX int, p Params, world func(y, 
 	height := endY - startY
 	width := endX - startX
 	newWorld := makeWorld(height, width)
-
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			neighbours := calculateNeighbours(p, startX+x, startY+y, world)
