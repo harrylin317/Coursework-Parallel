@@ -46,7 +46,7 @@ func distributor(p Params, c distributorChannels) {
 		}
 	}
 
-	//initialize alive cells from the new world
+	//initialize alive cells from the new world, prevents empty alicecells when turn is 0
 	aliveCells := calculateAliveCells(p, world)
 	// set up ticker to tick every 2 second and gets the alive cell count
 	go func() {
@@ -107,12 +107,12 @@ func distributor(p Params, c distributorChannels) {
 	for turns = 0; turns < p.Turns; turns++ {
 		select {
 		case <-pauseChan:
-			fmt.Println("Currently on turn: ", turns+1)
+			fmt.Println("Currently paused on turn: ", turns+1)
 			c.events <- StateChange{turns, Paused}
 			select {
 			case <-pauseChan:
-				c.events <- StateChange{turns, Executing}
 				fmt.Println("Continuing execution on turn: ", turns+1)
+				c.events <- StateChange{turns, Executing}
 				turns--
 				break
 			case exit = <-exitChan:
@@ -160,7 +160,7 @@ func distributor(p Params, c distributorChannels) {
 	ticker.Stop()
 	done <- true
 
-	aliveCells = calculateAliveCells(p, world)
+	//aliveCells = calculateAliveCells(p, world)
 	//call final turn complete event
 	eventFinalTurnComplete := FinalTurnComplete{CompletedTurns: turns, Alive: aliveCells}
 	c.events <- eventFinalTurnComplete
