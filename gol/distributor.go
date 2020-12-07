@@ -262,6 +262,7 @@ func calculateNextState(startY, endY, startX, endX int, p Params, world func(y, 
 			}
 		}
 	}
+
 	return newWorld
 }
 
