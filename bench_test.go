@@ -9,7 +9,7 @@ import (
 
 func BenchmarkParallel(b *testing.B) {
 	//os.Stdout = nil
-	testParams := gol.Params{ImageWidth: 512, ImageHeight: 512, Turns: 10000}
+	testParams := gol.Params{ImageWidth: 512, ImageHeight: 512, Turns: 1000}
 	for i := 0; i < b.N; i++ {
 
 		for threads := 1; threads <= 16; threads++ {

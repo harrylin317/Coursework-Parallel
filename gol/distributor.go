@@ -142,8 +142,6 @@ func distributor(p Params, c distributorChannels) {
 
 			//generate new closure of the updated world
 			immutableWorld = makeImmutableWorld(world)
-			// fmt.Println("Finished :", turns+1)
-			// fmt.Println("completed turn :", turns+1)
 
 			//call turn complete event when all process for one turn finish
 			eventTurnComplete := TurnComplete{CompletedTurns: turns + 1}
@@ -160,7 +158,6 @@ func distributor(p Params, c distributorChannels) {
 	ticker.Stop()
 	done <- true
 
-	//aliveCells = calculateAliveCells(p, world)
 	//call final turn complete event
 	eventFinalTurnComplete := FinalTurnComplete{CompletedTurns: turns, Alive: aliveCells}
 	c.events <- eventFinalTurnComplete
@@ -171,8 +168,6 @@ func distributor(p Params, c distributorChannels) {
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
-
-	//This was originally: c.events <- StateChange{p.Turns, Quitting}
 	c.events <- StateChange{turns, Quitting}
 	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
 	close(c.events)
