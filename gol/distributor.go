@@ -120,7 +120,6 @@ func distributor(p Params, c distributorChannels) {
 			}
 		case exit = <-exitChan:
 		default:
-			// fmt.Println("Executing :", turns+1)
 			for i := 0; i < p.Threads; i++ {
 				//if the length cannot be evenly divided, allow the last worker to do all the remaining extra length of the image
 				if checkRemainder != 0 && i == p.Threads-1 {
