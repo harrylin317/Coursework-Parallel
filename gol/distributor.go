@@ -3,6 +3,7 @@ package gol
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"uk.ac.bris.cs/gameoflife/util"
@@ -23,14 +24,18 @@ const dead = 0
 
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
-	//initialize values and channels
+	//initialize values, channels, mutex
+	tickerMutex := &sync.Mutex{}
+	tickerGet := make(chan bool)
 	ticker := time.NewTicker(2 * time.Second)
 	done := make(chan bool)
+	shutDownKeypress := make(chan bool)
 	turns := 0
 	world := makeWorld(p.ImageHeight, p.ImageWidth)
 	pauseChan := make(chan bool)
 	exitChan := make(chan bool)
 	pause := false
+	exit := false
 
 	// Get filename and call input command to initialize world and call Cellflipped Event on alive cells
 	c.ioCommand <- ioInput
@@ -58,9 +63,13 @@ func distributor(p Params, c distributorChannels) {
 				if pause {
 					break
 				}
+				tickerMutex.Lock()
+				tickerGet <- true
 				aliveCellsCount := len(aliveCells)
 				eventAliveCellsCount := AliveCellsCount{CompletedTurns: turns, CellsCount: aliveCellsCount}
+				tickerMutex.Unlock()
 				c.events <- eventAliveCellsCount
+
 			}
 		}
 	}()
@@ -86,6 +95,8 @@ func distributor(p Params, c distributorChannels) {
 						pauseChan <- pause
 					}
 				}
+			case <-shutDownKeypress:
+				return
 			}
 		}
 	}()
@@ -103,9 +114,12 @@ func distributor(p Params, c distributorChannels) {
 
 	//execute all turns and sends out workers
 	//select statements are used in order to manage channels from key press so the program knows when to pause or exit the program
-	exit := false
 	for turns = 0; turns < p.Turns; turns++ {
 		select {
+		case <-tickerGet:
+			tickerMutex.Lock()
+			tickerMutex.Unlock()
+			turns--
 		case <-pauseChan:
 			fmt.Println("Currently paused on turn: ", turns+1)
 			c.events <- StateChange{turns, Paused}
@@ -145,17 +159,23 @@ func distributor(p Params, c distributorChannels) {
 			//call turn complete event when all process for one turn finish
 			eventTurnComplete := TurnComplete{CompletedTurns: turns + 1}
 			c.events <- eventTurnComplete
-
 		}
-		//if exit is true (only changes when 'q' is pressed), exit the execution process, decrement turns because this turn doesn't count as a finished execution
-		if exit {
+		//if exit is true (only changes when 'q' is pressed) or all turns finished, exit the execution process
+		if exit || turns == p.Turns-1 {
+			//this select statement is to prevent the situation where ticker sends value down tickerGet channel and the execution is already finished
+			//so there is no channel for tickerGet to receive, thus blocking the whole execution
+			select {
+			case <-tickerGet:
+				fmt.Println("Get extra ticker")
+			default:
+			}
 			break
 		}
 	}
-
-	//stop ticker
+	//stop ticker and keypress
 	ticker.Stop()
 	done <- true
+	shutDownKeypress <- true
 
 	//call final turn complete event
 	eventFinalTurnComplete := FinalTurnComplete{CompletedTurns: turns, Alive: aliveCells}
